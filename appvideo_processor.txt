@@ -1,0 +1,40 @@
+import cv2
+from collections import defaultdict
+from app.detector import BirdDetector
+from app.tracker import BirdTracker
+from app.weight_estimator import WeightEstimator
+
+def process_video(video_path):
+    cap = cv2.VideoCapture(video_path)
+
+    detector = BirdDetector()
+    tracker = BirdTracker()
+    weight_estimator = WeightEstimator()
+
+    bird_weights = defaultdict(list)
+
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        detections = detector.detect(frame)
+        tracks = tracker.update(detections, frame)
+
+        for track in tracks:
+            if not track.is_confirmed():
+                continue
+
+            track_id = track.track_id
+            x1, y1, x2, y2 = track.to_ltrb()
+            weight = weight_estimator.estimate((x1, y1, x2, y2))
+            bird_weights[track_id].append(weight)
+
+    cap.release()
+
+    return {
+        "total_birds": len(bird_weights),
+        "bird_weight_index": {
+            k: round(sum(v) / len(v), 2) for k, v in bird_weights.items()
+        }
+    }

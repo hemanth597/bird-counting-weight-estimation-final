@@ -1,0 +1,18 @@
+from fastapi import FastAPI, UploadFile, File
+import shutil
+import os
+from app.video_processor import process_video
+
+app = FastAPI(title="Bird Counting & Weight Estimation")
+
+@app.post("/analyze")
+async def analyze_video(file: UploadFile = File(...)):
+    temp_file = f"temp_{file.filename}"
+
+    with open(temp_file, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    result = process_video(temp_file)
+    os.remove(temp_file)
+
+    return result
